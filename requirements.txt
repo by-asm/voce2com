@@ -1,0 +1,13 @@
+# versiones exactas probadas en local (Python 3.11, Windows)
+# torch se instala aparte en el Dockerfile con --index-url cpu
+torch==2.14.0
+torchaudio==2.11.0
+# transformers: 4.42.4 es la única versión compatible con coqui-tts==0.24.2 despues de realizar pruebas
+# (>=4.43 rompe; <4.42 también es incompatible)
+transformers==4.42.4
+coqui-tts==0.24.2
+fastapi==0.141.1
+uvicorn==0.53.0
+soundfile==0.14.0
+numpy==1.26.4
+huggingface-hub
