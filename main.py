@@ -40,7 +40,9 @@ app = FastAPI(title="voce2com TTS", version="1.0.0", lifespan=lifespan)
 @app.get("/tts", response_class=StreamingResponse)
 def synthesize(texto: str, voz: str = "celtia"):
     if not texto.strip():
-        raise HTTPException(status_code=400, detail="O parámetro 'texto' non pode estar baleiro")
+        raise HTTPException(
+            status_code=400, detail="O parámetro 'texto' non pode estar baleiro"
+        )
     if voz not in VOICES:
         raise HTTPException(
             status_code=400,
