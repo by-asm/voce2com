@@ -1,6 +1,11 @@
 from fastapi import HTTPException
 
 _MESSAGES: dict[str, dict[str, str]] = {
+    "UNAUTHORIZED": {
+        "en": "Invalid or missing API key",
+        "es": "Clave de API inválida o ausente",
+        "gl": "Clave de API inválida ou ausente",
+    },
     "TEXT_EMPTY": {
         "en": "The 'text' parameter cannot be empty",
         "es": "El parámetro 'text' no puede estar vacío",
@@ -20,6 +25,11 @@ _MESSAGES: dict[str, dict[str, str]] = {
         "en": "The requested voice is not available for this language",
         "es": "La voz solicitada no está disponible para este idioma",
         "gl": "A voz solicitada non está dispoñible para este idioma",
+    },
+    "RATE_LIMIT_EXCEEDED": {
+        "en": "Too many requests, please try again later",
+        "es": "Demasiadas solicitudes, inténtalo de nuevo más tarde",
+        "gl": "Demasiadas solicitudes, téntao de novo máis tarde",
     },
 }
 

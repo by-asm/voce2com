@@ -1,12 +1,22 @@
+import hmac
 import io
+import logging
+import os
+import re
 from contextlib import asynccontextmanager
 
 import soundfile as sf
 from TTS.api import TTS
-from fastapi import APIRouter, FastAPI, Header, Query
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, FastAPI, Header, Query, Request, Security
+from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.security import APIKeyHeader
+from slowapi import Limiter
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 from errors import resolve_locale, tts_error
+
+logger = logging.getLogger(__name__)
 
 MAX_TEXT_LENGTH = 200
 
@@ -24,6 +34,26 @@ VOICES = {
 _tts_instances: dict[str, TTS] = {}
 
 
+def _get_client_key(request: Request) -> str:
+    forwarded_for = request.headers.get("X-Forwarded-For")
+    if forwarded_for:
+        return forwarded_for.split(",")[0].strip()
+    return get_remote_address(request)
+
+
+limiter = Limiter(key_func=_get_client_key)
+_api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+
+def verify_api_key(
+    api_key: str | None = Security(_api_key_header),
+    accept_language: str | None = Header(default=None),
+):
+    expected = os.getenv("API_KEY", "")
+    if not expected or not api_key or not hmac.compare_digest(api_key, expected):
+        raise tts_error("UNAUTHORIZED", resolve_locale(accept_language), 401)
+
+
 def get_tts(language: str, voice: str) -> TTS:
     key = f"{language}:{voice}"
     if key not in _tts_instances:
@@ -36,20 +66,42 @@ def get_tts(language: str, voice: str) -> TTS:
     return _tts_instances[key]
 
 
+def _safe_filename(text: str, language: str, voice: str) -> str:
+    slug = re.sub(r"[^\w\s-]", "", text[:30]).strip()
+    slug = re.sub(r"\s+", "_", slug)
+    return f"{slug}_{language}_{voice}.wav"
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    api_key = os.getenv("API_KEY")
+    if not api_key:
+        logger.warning("API_KEY environment variable is not set — all requests will be rejected")
+
     for language, voices in VOICES.items():
         for voice in voices:
             get_tts(language, voice)
     yield
 
 
+def _rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:
+    accept_language = request.headers.get("Accept-Language")
+    locale = resolve_locale(accept_language)
+    error = tts_error("RATE_LIMIT_EXCEEDED", locale, 429)
+    return JSONResponse(status_code=429, content={"detail": error.detail})
+
+
 app = FastAPI(title="voce2com TTS", version="1.0.0", lifespan=lifespan)
-router = APIRouter(prefix="/v1")
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_handler)
+
+router = APIRouter(prefix="/v1", dependencies=[Depends(verify_api_key)])
 
 
-@router.get("/tts", response_class=StreamingResponse)
+@router.get("/tts")
+@limiter.limit("20/minute")
 def synthesize(
+    request: Request,
     text: str = Query(..., description="Text to synthesize"),
     language: str = Query(default="gl", description="Language code (e.g. gl, eu, ca)"),
     voice: str = Query(default="celtia", description="Voice name"),
@@ -94,24 +146,26 @@ def synthesize(
     size = buf.tell()
     buf.seek(0)
 
-    filename = f"{text[:30].replace(' ', '_')}_{language}_{voice}.wav"
     return StreamingResponse(
         buf,
         media_type="audio/wav",
         headers={
-            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Disposition": f'attachment; filename="{_safe_filename(text, language, voice)}"',
             "Content-Length": str(size),
         },
     )
 
 
 @router.get("/languages")
-def list_languages():
+@limiter.limit("60/minute")
+def list_languages(request: Request):
     return {"languages": list(VOICES.keys())}
 
 
 @router.get("/voices")
+@limiter.limit("60/minute")
 def list_voices(
+    request: Request,
     language: str = Query(description="Language code (e.g. gl, eu, ca)"),
     accept_language: str | None = Header(default=None),
 ):
