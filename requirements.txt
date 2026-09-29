@@ -11,3 +11,5 @@ uvicorn==0.53.0
 soundfile==0.14.0
 numpy==1.26.4
 huggingface-hub
+
+tts
