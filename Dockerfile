@@ -7,13 +7,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-# torch CPU primero (versión separada para evitar conflictos)
 RUN pip install --no-cache-dir \
     torch==2.14.0 \
     torchaudio==2.11.0 \
     --index-url https://download.pytorch.org/whl/cpu
 
-# resto de dependencias con versiones exactas probadas
 RUN pip install --no-cache-dir \
     transformers==4.42.4 \
     coqui-tts==0.24.2 \
@@ -21,14 +19,17 @@ RUN pip install --no-cache-dir \
     uvicorn==0.53.0 \
     soundfile==0.14.0 \
     numpy==1.26.4 \
-    huggingface-hub
+    huggingface-hub \
+    "sentry-sdk[fastapi]==2.71.0" \
+    slowapi==0.1.10
 
-# descarga el modelo de Celtia desde HuggingFace en tiempo de build
-RUN python -c "\
+ARG HF_TOKEN
+RUN HF_TOKEN=${HF_TOKEN} python -c "\
+import os; \
 from huggingface_hub import snapshot_download; \
-snapshot_download(repo_id='proxectonos/Nos_TTS-celtia-vits-graphemes', local_dir='models/celtia')"
+snapshot_download(repo_id='proxectonos/Nos_TTS-celtia-vits-graphemes', local_dir='models/celtia', token=os.environ['HF_TOKEN'])"
 
-COPY main.py .
+COPY main.py errors.py ./
 
 EXPOSE 8000
 

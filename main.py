@@ -5,16 +5,26 @@ import os
 import re
 from contextlib import asynccontextmanager
 
+import sentry_sdk
 import soundfile as sf
 from TTS.api import TTS
 from fastapi import APIRouter, Depends, FastAPI, Header, Query, Request, Security
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.security import APIKeyHeader
+from sentry_sdk.integrations.fastapi import FastApiIntegration
+from sentry_sdk.integrations.starlette import StarletteIntegration
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
 from errors import resolve_locale, tts_error
+
+sentry_sdk.init(
+    dsn=os.getenv("SENTRY_DSN"),
+    integrations=[StarletteIntegration(), FastApiIntegration()],
+    traces_sample_rate=0.2,
+    send_default_pii=False,
+)
 
 logger = logging.getLogger(__name__)
 

@@ -12,5 +12,6 @@ soundfile==0.14.0
 numpy==1.26.4
 huggingface-hub
 slowapi==0.1.10
+sentry-sdk[fastapi]==2.71.0
 
 tts
