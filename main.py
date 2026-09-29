@@ -82,11 +82,23 @@ def _safe_filename(text: str, language: str, voice: str) -> str:
     return f"{slug}_{language}_{voice}.wav"
 
 
+def _download_models():
+    from huggingface_hub import snapshot_download
+    token = os.getenv("HF_TOKEN")
+    for cfg in (v for lang in VOICES.values() for v in lang.values()):
+        model_dir = os.path.dirname(cfg["model_path"])
+        if not os.path.exists(cfg["model_path"]):
+            repo_id = f"proxectonos/{os.path.basename(model_dir)}-vits-graphemes"
+            logger.info("Downloading model %s", repo_id)
+            snapshot_download(repo_id=repo_id, local_dir=model_dir, token=token)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    api_key = os.getenv("API_KEY")
-    if not api_key:
+    if not os.getenv("API_KEY"):
         logger.warning("API_KEY environment variable is not set — all requests will be rejected")
+
+    _download_models()
 
     for language, voices in VOICES.items():
         for voice in voices:

@@ -23,12 +23,6 @@ RUN pip install --no-cache-dir \
     "sentry-sdk[fastapi]==2.71.0" \
     slowapi==0.1.10
 
-ARG HF_TOKEN
-RUN HF_TOKEN=${HF_TOKEN} python -c "\
-import os; \
-from huggingface_hub import snapshot_download; \
-snapshot_download(repo_id='proxectonos/Nos_TTS-celtia-vits-graphemes', local_dir='models/celtia', token=os.environ['HF_TOKEN'])"
-
 COPY main.py errors.py ./
 
 EXPOSE 8000
