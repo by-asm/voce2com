@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 
 import soundfile as sf
 from TTS.api import TTS
-from fastapi import FastAPI, Header, Query
+from fastapi import APIRouter, FastAPI, Header, Query
 from fastapi.responses import StreamingResponse
 
 from errors import resolve_locale, tts_error
@@ -45,9 +45,10 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="voce2com TTS", version="1.0.0", lifespan=lifespan)
+router = APIRouter(prefix="/v1")
 
 
-@app.get("/tts", response_class=StreamingResponse)
+@router.get("/tts", response_class=StreamingResponse)
 def synthesize(
     text: str = Query(..., description="Text to synthesize"),
     language: str = Query(default="gl", description="Language code (e.g. gl, eu, ca)"),
@@ -104,7 +105,12 @@ def synthesize(
     )
 
 
-@app.get("/voices")
+@router.get("/languages")
+def list_languages():
+    return {"languages": list(VOICES.keys())}
+
+
+@router.get("/voices")
 def list_voices(
     language: str = Query(description="Language code (e.g. gl, eu, ca)"),
     accept_language: str | None = Header(default=None),
@@ -123,6 +129,9 @@ def list_voices(
         voice: {"gender": cfg["gender"], "sample_rate": cfg["sample_rate"]}
         for voice, cfg in VOICES[language].items()
     }
+
+
+app.include_router(router)
 
 
 @app.get("/health")

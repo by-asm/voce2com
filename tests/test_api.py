@@ -27,8 +27,14 @@ def test_health(client):
     assert response.json() == {"status": "ok"}
 
 
+def test_list_languages(client):
+    response = client.get("/v1/languages")
+    assert response.status_code == 200
+    assert "gl" in response.json()["languages"]
+
+
 def test_list_voices_returns_voices_for_language(client):
-    response = client.get("/voices", params={"language": "gl"})
+    response = client.get("/v1/voices", params={"language": "gl"})
     assert response.status_code == 200
     data = response.json()
     assert "celtia" in data
@@ -36,57 +42,57 @@ def test_list_voices_returns_voices_for_language(client):
     assert data["celtia"]["sample_rate"] == 22050
 
 
+def test_list_voices_unknown_language_returns_language_not_found(client):
+    response = client.get("/v1/voices", params={"language": "xx"})
+    assert response.status_code == 404
+    assert response.json()["detail"]["code"] == "LANGUAGE_NOT_FOUND"
+
+
 def test_tts_returns_wav(client):
-    response = client.get("/tts", params={"text": "ola", "language": "gl", "voice": "celtia"})
+    response = client.get("/v1/tts", params={"text": "ola", "language": "gl", "voice": "celtia"})
     assert response.status_code == 200
     assert response.headers["content-type"] == "audio/wav"
     assert response.content[:4] == b"RIFF"
 
 
 def test_tts_includes_content_length(client):
-    response = client.get("/tts", params={"text": "ola", "language": "gl", "voice": "celtia"})
+    response = client.get("/v1/tts", params={"text": "ola", "language": "gl", "voice": "celtia"})
     assert response.status_code == 200
     assert int(response.headers["content-length"]) > 0
 
 
 def test_tts_default_language_and_voice(client):
-    response = client.get("/tts", params={"text": "ola"})
+    response = client.get("/v1/tts", params={"text": "ola"})
     assert response.status_code == 200
 
 
 def test_tts_empty_text_returns_text_empty(client):
-    response = client.get("/tts", params={"text": "   "})
+    response = client.get("/v1/tts", params={"text": "   "})
     assert response.status_code == 400
     assert response.json()["detail"]["code"] == "TEXT_EMPTY"
 
 
 def test_tts_text_too_long_returns_text_too_long(client):
-    response = client.get("/tts", params={"text": "a" * 201})
+    response = client.get("/v1/tts", params={"text": "a" * 201})
     assert response.status_code == 400
     assert response.json()["detail"]["code"] == "TEXT_TOO_LONG"
 
 
 def test_tts_unknown_language_returns_language_not_found(client):
-    response = client.get("/tts", params={"text": "hello", "language": "xx"})
+    response = client.get("/v1/tts", params={"text": "hello", "language": "xx"})
     assert response.status_code == 404
     assert response.json()["detail"]["code"] == "LANGUAGE_NOT_FOUND"
 
 
 def test_tts_unknown_voice_returns_voice_not_found(client):
-    response = client.get("/tts", params={"text": "ola", "language": "gl", "voice": "unknown"})
+    response = client.get("/v1/tts", params={"text": "ola", "language": "gl", "voice": "unknown"})
     assert response.status_code == 404
     assert response.json()["detail"]["code"] == "VOICE_NOT_FOUND"
 
 
-def test_list_voices_unknown_language_returns_language_not_found(client):
-    response = client.get("/voices", params={"language": "xx"})
-    assert response.status_code == 404
-    assert response.json()["detail"]["code"] == "LANGUAGE_NOT_FOUND"
-
-
 def test_error_message_in_galician(client):
     response = client.get(
-        "/tts",
+        "/v1/tts",
         params={"text": "   "},
         headers={"Accept-Language": "gl"},
     )
@@ -95,7 +101,7 @@ def test_error_message_in_galician(client):
 
 def test_error_message_in_spanish(client):
     response = client.get(
-        "/tts",
+        "/v1/tts",
         params={"text": "   "},
         headers={"Accept-Language": "es"},
     )
@@ -103,5 +109,5 @@ def test_error_message_in_spanish(client):
 
 
 def test_error_message_defaults_to_english(client):
-    response = client.get("/tts", params={"text": "   "})
+    response = client.get("/v1/tts", params={"text": "   "})
     assert response.json()["detail"]["message"] == "The 'text' parameter cannot be empty"
