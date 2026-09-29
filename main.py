@@ -35,6 +35,7 @@ VOICES = {
         "celtia": {
             "model_path": "models/celtia/celtia.pth",
             "config_path": "models/celtia/config.json",
+            "hf_repo": "proxectonos/Nos_TTS-celtia-vits-graphemes",
             "gender": "female",
             "sample_rate": 22050,
         },
@@ -86,11 +87,10 @@ def _download_models():
     from huggingface_hub import snapshot_download
     token = os.getenv("HF_TOKEN")
     for cfg in (v for lang in VOICES.values() for v in lang.values()):
-        model_dir = os.path.dirname(cfg["model_path"])
         if not os.path.exists(cfg["model_path"]):
-            repo_id = f"proxectonos/{os.path.basename(model_dir)}-vits-graphemes"
-            logger.info("Downloading model %s", repo_id)
-            snapshot_download(repo_id=repo_id, local_dir=model_dir, token=token)
+            model_dir = os.path.dirname(cfg["model_path"])
+            logger.info("Downloading model %s", cfg["hf_repo"])
+            snapshot_download(repo_id=cfg["hf_repo"], local_dir=model_dir, token=token)
 
 
 @asynccontextmanager
